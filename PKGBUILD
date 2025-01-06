@@ -10,7 +10,7 @@ depends=('bash' 'ffmpeg' 'bc')
 makedepends=('git')
 provides=("${pkgname%-git}")
 conflicts=("${pkgname%-git}")
-source=("git+https://github.com/bermudi/splitvid.git")
+source=("$pkgname::git+https://github.com/bermudi/splitvid.git")
 sha256sums=('SKIP')
 
 pkgver() {
