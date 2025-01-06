@@ -146,16 +146,19 @@ process_split() {
     
     echo -e "${YELLOW}Processing: $output${NC}"
     
+    # Create a local copy of encode_params
+    local local_encode_params=("${encode_params[@]}")
+    
     if [ "$preserve_keyframes" = true ]; then
-        encode_params+=(-avoid_negative_ts 1)
+        local_encode_params+=(-avoid_negative_ts 1)
     fi
     
     # Temporary file for stderr
     local stderr_file=$(mktemp)
     
     if [ "$verbose" = true ]; then
-        echo "FFmpeg command: ffmpeg ${encode_params[@]} -i \"$input_file\" -ss \"$start\" -t \"$duration\" -c:v copy -progress pipe:1 \"$output\""
-        ffmpeg "${encode_params[@]}" -i "$input_file" -ss "$start" -t "$duration" \
+        echo "FFmpeg command: ffmpeg ${local_encode_params[@]} -i \"$input_file\" -ss \"$start\" -t \"$duration\" -c:v copy -progress pipe:1 \"$output\""
+        ffmpeg "${local_encode_params[@]}" -i "$input_file" -ss "$start" -t "$duration" \
             -c:v copy -progress pipe:1 "$output" 2>&1 | \
         while read line; do
             echo "$line"
@@ -167,7 +170,7 @@ process_split() {
             fi
         done
     else
-        ffmpeg "${encode_params[@]}" -i "$input_file" -ss "$start" -t "$duration" \
+        ffmpeg "${local_encode_params[@]}" -i "$input_file" -ss "$start" -t "$duration" \
             -c:v copy -progress pipe:1 "$output" 2>"$stderr_file" | \
         while read line; do
             if [[ $line == time=* ]]; then
