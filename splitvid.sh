@@ -157,8 +157,8 @@ process_split() {
     local stderr_file=$(mktemp)
     
     if [ "$verbose" = true ]; then
-        echo "FFmpeg command: ffmpeg ${local_encode_params[@]} -i \"$input_file\" -ss \"$start\" -t \"$duration\" -c:v copy -progress pipe:1 \"$output\""
-        ffmpeg "${local_encode_params[@]}" -i "$input_file" -ss "$start" -t "$duration" \
+        echo "FFmpeg command: ffmpeg ${local_encode_params[@]} -ss \"$start\" -i \"$input_file\" -t \"$duration\" -c:v copy -progress pipe:1 \"$output\""
+        ffmpeg "${local_encode_params[@]}" -ss "$start" -i "$input_file" -t "$duration" \
             -c:v copy -progress pipe:1 "$output" 2>&1 | \
         while read line; do
             echo "$line"
@@ -170,7 +170,7 @@ process_split() {
             fi
         done
     else
-        ffmpeg "${local_encode_params[@]}" -i "$input_file" -ss "$start" -t "$duration" \
+        ffmpeg "${local_encode_params[@]}" -ss "$start" -i "$input_file" -t "$duration" \
             -c:v copy -progress pipe:1 "$output" 2>"$stderr_file" | \
         while read line; do
             if [[ $line == time=* ]]; then
