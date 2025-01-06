@@ -7,11 +7,16 @@ arch=('any')
 url="https://github.com/bermudi/splitvid"
 license=('MIT')
 depends=('bash' 'ffmpeg' 'bc')
-source=("git+https://github.com/bermudi/splitvid.git")
+makedepends=()
+source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')
 
+build() {
+    true
+}
+
 package() {
-    cd "$srcdir/$pkgname"
-    install -Dm755 splitvid.sh "$pkgdir/usr/bin/splitvid"
+    cd "$srcdir"
+    install -Dm755 splitvid.sh "$pkgdir/usr/bin/$pkgname"
     install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
 }
