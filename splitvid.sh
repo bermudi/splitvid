@@ -112,8 +112,6 @@ fi
 
 if [ "$quality_optimization" = true ]; then
     encode_params+=(-preset slow -crf 18)
-else
-    encode_params+=(-c copy)
 fi
 
 # Function to format time
@@ -133,8 +131,11 @@ process_split() {
         encode_params+=(-avoid_negative_ts 1)
     fi
     
+    # Temporary file for stderr
+    local stderr_file=$(mktemp)
+    
     ffmpeg "${encode_params[@]}" -i "$input_file" -ss "$start" -t "$duration" \
-        -progress pipe:1 "$output" 2>/dev/null | \
+        -c:v copy -progress pipe:1 "$output" 2>"$stderr_file" | \
     while read line; do
         if [[ $line == time=* ]]; then
             current_time=${line#time=}
@@ -143,22 +144,43 @@ process_split() {
             echo -ne "\rProgress: ${progress}%"
         fi
     done
+    
+    local ffmpeg_status=${PIPESTATUS[0]}
+    if [ $ffmpeg_status -ne 0 ]; then
+        echo -e "\n${RED}Error: FFmpeg failed with status $ffmpeg_status${NC}"
+        cat "$stderr_file"
+        rm "$stderr_file"
+        return 1
+    fi
+    
+    rm "$stderr_file"
     echo -e "\n${GREEN}Completed: $output${NC}"
+    return 0
 }
 
 # Split based on mode
 if [ "$split_mode" = "half" ]; then
     half_duration=$(echo "$duration / 2" | bc)
     
-    process_split 0 "$half_duration" "$output_dir/part1.mp4"
-    process_split "$half_duration" "$duration" "$output_dir/part2.mp4"
+    if ! process_split 0 "$half_duration" "$output_dir/part1.mp4"; then
+        echo -e "${RED}Error: Failed to create first half${NC}"
+        exit 1
+    fi
+    
+    if ! process_split "$half_duration" "$duration" "$output_dir/part2.mp4"; then
+        echo -e "${RED}Error: Failed to create second half${NC}"
+        exit 1
+    fi
     
 elif [ "$split_mode" = "segments" ]; then
     segment_count=$(echo "($duration + $segment_duration - 1) / $segment_duration" | bc)
     
     for ((i=0; i<segment_count; i++)); do
         start=$(echo "$i * $segment_duration" | bc)
-        process_split "$start" "$segment_duration" "$output_dir/segment_${i}.mp4"
+        if ! process_split "$start" "$segment_duration" "$output_dir/segment_${i}.mp4"; then
+            echo -e "${RED}Error: Failed to create segment ${i}${NC}"
+            exit 1
+        fi
     done
 fi
 
