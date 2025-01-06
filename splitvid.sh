@@ -10,6 +10,7 @@ segment_duration=""
 preserve_keyframes=true
 gpu_acceleration=false
 quality_optimization=false
+verbose=false
 
 # ANSI color codes
 RED='\033[0;31m'
@@ -19,7 +20,7 @@ NC='\033[0m' # No Color
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 [-i input_file] [-o output_dir] [-m mode] [-d duration] [-k] [-g] [-q]"
+    echo "Usage: $0 [-i input_file] [-o output_dir] [-m mode] [-d duration] [-k] [-g] [-q] [-v] [-h]"
     echo "Options:"
     echo "  -i : Input video file (required)"
     echo "  -o : Output directory (default: timestamped folder)"
@@ -28,6 +29,8 @@ usage() {
     echo "  -k : Disable keyframe-accurate splitting"
     echo "  -g : Enable GPU acceleration (if available)"
     echo "  -q : Enable quality optimization"
+    echo "  -v : Verbose output"
+    echo "  -h : Show this help message"
     exit 1
 }
 
@@ -63,7 +66,7 @@ validate_input() {
 }
 
 # Parse command line arguments
-while getopts "i:o:m:d:kgq" opt; do
+while getopts "i:o:m:d:kgqv" opt; do
     case $opt in
         i) input_file="$OPTARG" ;;
         o) output_dir="$OPTARG" ;;
@@ -72,7 +75,23 @@ while getopts "i:o:m:d:kgq" opt; do
         k) preserve_keyframes=false ;;
         g) gpu_acceleration=true ;;
         q) quality_optimization=true ;;
-        ?) usage ;;
+        v) verbose=true ;;
+        h)
+            echo "Usage: $0 [-i input_file] [-o output_dir] [-m mode] [-d duration] [-k] [-g] [-q] [-v] [-h]"
+            echo "  -i: Input file"
+            echo "  -m: Mode (half or segments)"
+            echo "  -d: Segment duration in seconds (only for segments mode)"
+            echo "  -k: Disable keyframe-accurate splitting"
+            echo "  -g: Enable GPU acceleration (if available)"
+            echo "  -q: Enable quality optimization"
+            echo "  -v: Verbose output"
+            echo "  -h: Show this help message"
+            exit 0
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
     esac
 done
 
@@ -134,16 +153,31 @@ process_split() {
     # Temporary file for stderr
     local stderr_file=$(mktemp)
     
-    ffmpeg "${encode_params[@]}" -i "$input_file" -ss "$start" -t "$duration" \
-        -c:v copy -progress pipe:1 "$output" 2>"$stderr_file" | \
-    while read line; do
-        if [[ $line == time=* ]]; then
-            current_time=${line#time=}
-            current_seconds=$(echo "$current_time" | awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }')
-            progress=$(echo "scale=2; $current_seconds/$duration * 100" | bc)
-            echo -ne "\rProgress: ${progress}%"
-        fi
-    done
+    if [ "$verbose" = true ]; then
+        echo "FFmpeg command: ffmpeg ${encode_params[@]} -i \"$input_file\" -ss \"$start\" -t \"$duration\" -c:v copy -progress pipe:1 \"$output\""
+        ffmpeg "${encode_params[@]}" -i "$input_file" -ss "$start" -t "$duration" \
+            -c:v copy -progress pipe:1 "$output" 2>&1 | \
+        while read line; do
+            echo "$line"
+            if [[ $line == time=* ]]; then
+                current_time=${line#time=}
+                current_seconds=$(echo "$current_time" | awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }')
+                progress=$(echo "scale=2; $current_seconds/$duration * 100" | bc)
+                echo -ne "\rProgress: ${progress}%"
+            fi
+        done
+    else
+        ffmpeg "${encode_params[@]}" -i "$input_file" -ss "$start" -t "$duration" \
+            -c:v copy -progress pipe:1 "$output" 2>"$stderr_file" | \
+        while read line; do
+            if [[ $line == time=* ]]; then
+                current_time=${line#time=}
+                current_seconds=$(echo "$current_time" | awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }')
+                progress=$(echo "scale=2; $current_seconds/$duration * 100" | bc)
+                echo -ne "\rProgress: ${progress}%"
+            fi
+        done
+    fi
     
     local ffmpeg_status=${PIPESTATUS[0]}
     if [ $ffmpeg_status -ne 0 ]; then
@@ -193,6 +227,7 @@ fi
     echo "Split Mode: $split_mode"
     echo "GPU Acceleration: $gpu_acceleration"
     echo "Quality Optimization: $quality_optimization"
+    echo "Verbose Mode: $verbose"
     echo "Timestamp: $(date)"
 } > "$output_dir/metadata.txt"
 
