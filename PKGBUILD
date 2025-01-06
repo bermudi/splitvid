@@ -1,6 +1,6 @@
 # Maintainer: Daniel Bermudez <bermudi@gmail.com>
 pkgname=splitvid-git
-pkgver=1.0.0.r0.g7e16e90
+pkgver=1.0.0.r9.gbaac0e1
 pkgrel=1
 pkgdesc="A command-line utility to split videos into equal halves or segments"
 arch=('any')
@@ -15,12 +15,7 @@ sha256sums=('SKIP')
 
 pkgver() {
     cd "$srcdir/$pkgname"
-    local ver=$(git describe --long --tags 2>/dev/null)
-    if [ -z "$ver" ]; then
-        printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
-    else
-        echo "$ver" | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
-    fi
+    printf "1.0.0.r%s.g%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
 }
 
 build() {
